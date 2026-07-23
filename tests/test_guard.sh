@@ -33,6 +33,8 @@ check "write md slop"     deny  '{"tool_name":"Write","tool_input":{"file_path":
 check "write py slop"     allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/app.py","content":"# delve tapestry supercharge"}}'
 check "write denylist plan" allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/docs/plans/p.md","content":"delve into this tapestry"}}'
 check "write denylist CLAUDE" allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/CLAUDE.md","content":"delve tapestry"}}'
+check "write denylist tests dir" allow '{"tool_name":"Write","tool_input":{"file_path":"/x/repo/tests/fixture.md","content":"delve tapestry game changer"}}'
+check "write denylist tool repo" allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/Developer/no-ai-slop/README.md","content":"delve tapestry paradigm shift"}}'
 check "edit md slop"      deny  '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/brief.md","new_string":"a transformative, game-changing shift"}}'
 check "bash not guarded"  allow '{"tool_name":"Bash","tool_input":{"command":"echo delve tapestry"}}'
 check "read not guarded"  allow '{"tool_name":"Read","tool_input":{"file_path":"/x/delve.md"}}'
