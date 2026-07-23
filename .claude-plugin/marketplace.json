@@ -1,0 +1,16 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-marketplace.json",
+  "name": "no-ai-slop",
+  "description": "Deterministic AI-slop guard for Claude Code: block slop before it publishes, plus the manual editor/detector skill.",
+  "owner": {
+    "name": "Jesse Ganes"
+  },
+  "plugins": [
+    {
+      "name": "no-ai-slop",
+      "description": "PreToolUse slop guard + manual no-ai-slop editor/detector skill.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

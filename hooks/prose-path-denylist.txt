@@ -1,0 +1,38 @@
+# no-ai-slop — PROSE-FILE PATH DENYLIST (deterministic hook)
+#
+# The hook guards human-facing prose written to disk (.md / .mdx / .txt).
+# Any Write/Edit whose file path matches a pattern below is SKIPPED — the guard
+# never fires on it. This keeps the auto-rewrite off internal engineering docs,
+# planning artifacts, memory, and machine-owned files.
+#
+# Matching: each non-comment line is a substring OR glob-style pattern tested
+# against the absolute file path (case-insensitive). A match => skip the guard.
+# Keep this list conservative; when unsure, exclude (missing a memo is cheaper
+# than auto-editing a plan).
+#
+# Note: files that are not .md/.mdx/.txt (code, SQL, JSON, YAML, .py, .ts, ...)
+# are never scanned regardless of this list — the extension check excludes them.
+
+# --- Claude Code config, memory, plans, lessons (never touch) ---
+CLAUDE.md
+*/.claude/*
+*/plans/*
+MEMORY.md
+LESSONS.md
+LESSONS_RULES.md
+SESSIONS_*.md
+*-requirements.md
+*-routing.md
+
+# --- CE / planning + solutions artifacts (internal, not human-facing prose) ---
+*/docs/plans/*
+*/docs/brainstorms/*
+*/docs/solutions/*
+*/.compound-engineering/*
+
+# --- machine / repo housekeeping ---
+*/node_modules/*
+*/.git/*
+CHANGELOG.md
+CONTRIBUTING.md
+*/.github/*

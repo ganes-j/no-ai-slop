@@ -1,0 +1,4 @@
+{
+  "name": "no-ai-slop",
+  "description": "Deterministic AI-slop guard: block slop before it reaches Notion/Slack/Gmail/Artifacts/prose files, plus the manual no-ai-slop editor and detector skill."
+}

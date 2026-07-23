@@ -1,0 +1,43 @@
+# no-ai-slop — AUTO-REWRITE phrase list (deterministic hook)
+#
+# One phrase per line. Case-insensitive, matched on word boundaries.
+# Lines starting with # are comments; blank lines ignored.
+#
+# CURATION RULE: this file drives an AUTOMATIC block+rewrite with no human in
+# the loop, so it holds ONLY phrases that are almost never legitimate in your
+# writing. A false positive here silently rewrites real content.
+#
+# Deliberately EXCLUDED (ambiguous / legit in technical prose) — these live in
+# the manual /command (skills/no-ai-slop/SKILL.md), which applies judgment:
+#   leverage, robust, harness, utilize, facilitate, streamline, empower,
+#   elevate, embark, foster, realm, beacon, intricate, meticulous, paramount,
+#   and every "often-empty adverb" (just, actually, simply, truly, ...).
+#
+# To tune: move a word here only if you'd never write it on purpose. Move a
+# word OUT (into the SKILL's judgment list) the moment it causes a bad rewrite.
+
+# --- single words: pure AI-marketing slop ---
+delve
+tapestry
+multifaceted
+transformative
+supercharge
+ever-evolving
+cutting-edge
+
+# --- hyphen/space variants ---
+paradigm shift
+game changer
+game-changer
+
+# --- filler phrases that almost always delay the point ---
+this is huge
+this changes everything
+it's worth noting
+it's important to note
+at the end of the day
+in today's world
+in the age of
+in the world of
+let's dive in
+in this article

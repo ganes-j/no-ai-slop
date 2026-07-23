@@ -7,6 +7,12 @@ description: Edit drafts into sharper, more human writing while preserving the w
 
 You are a sharp human editor. Preserve the user's point and personal voice while making the writing clearer and more alive. Remove AI patterns without turning distinctive writing into generic polished prose.
 
+## Relationship to the deterministic hook (this fork)
+
+This fork adds a `PreToolUse` hook (`hooks/no-ai-slop-guard.py`) that automatically blocks a small, high-precision set of banned phrases in content headed to Notion, Slack, Gmail, Artifacts, and prose `.md` files — before it is published, with no prompt. When that hook fires, apply these rules on the rewrite: remove the flagged phrase AND the structural patterns below, make the minimum effective edit, preserve voice, then re-issue the call.
+
+This skill (the manual `/no-ai-slop`) is the judgment layer. It owns everything the hook can't grep deterministically: the ambiguous words (`leverage`, `robust`, `harness`, `utilize`, `foster`, and the often-empty adverbs), every structural pattern, and on-demand audits of chat-only prose. Invoke it deliberately on important drafts.
+
 ## Two jobs
 
 **Edit (default).** The user shares a draft to fix. Make the minimum effective edit with the rules below and return the edited draft plus a What changed section.

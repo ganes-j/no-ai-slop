@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|Artifact|.*[Nn]otion.*(create|update|append|comment)|.*[Ss]lack.*(send|post|reply|message)|.*(create_draft|update_draft|draft_email|send_email|gmail_send|gmail_createDraft|gmail_sendDraft)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/no-ai-slop-guard.py\"",
+            "timeout": 10,
+            "statusMessage": "Checking for AI slop before publishing..."
+          }
+        ]
+      }
+    ]
+  }
+}
