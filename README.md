@@ -38,20 +38,14 @@ It also enforces fundamentals: lead with the point, active voice, untangle hard 
 
 ## Install
 
-Add this repo as a plugin marketplace, then enable the plugin, in `~/.claude/settings.json`:
-
-```json
-"enabledPlugins": {
-  "no-ai-slop@no-ai-slop": true
-},
-"extraKnownMarketplaces": {
-  "no-ai-slop": {
-    "source": { "source": "github", "repo": "ganes-j/no-ai-slop" }
-  }
-}
+```bash
+claude plugin marketplace add ganes-j/no-ai-slop
+claude plugin install no-ai-slop@no-ai-slop
 ```
 
-Enabling the plugin registers the `PreToolUse` guard automatically (`hooks/hooks.json`). No manual hook wiring.
+Then reload / restart your session — hooks load at startup. Verify with `claude plugin list`.
+
+**Editing `settings.json` alone is not enough.** Adding `enabledPlugins` + `extraKnownMarketplaces` registers and clones the marketplace but does **not** install the plugin, so the `PreToolUse` guard never loads (it lives under `plugins/marketplaces/` but not `plugins/cache/`). Run `claude plugin install` as above, or use `/plugin` interactively. Installing registers the guard automatically via `hooks/hooks.json` — no manual hook wiring.
 
 ## Use
 
