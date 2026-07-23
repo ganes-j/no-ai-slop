@@ -1,7 +1,8 @@
 {
-  "$schema": "https://www.schemastore.org/claude-code-marketplace.json",
   "name": "no-ai-slop",
-  "description": "Deterministic AI-slop guard for Claude Code: block slop before it publishes, plus the manual editor/detector skill.",
+  "metadata": {
+    "description": "Deterministic AI-slop guard for Claude Code: block slop before it publishes, plus the manual editor/detector skill."
+  },
   "owner": {
     "name": "Jesse Ganes"
   },
