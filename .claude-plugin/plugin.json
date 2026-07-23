@@ -1,6 +1,6 @@
 {
   "name": "no-ai-slop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Deterministic AI-slop guard: a PreToolUse hook greps content headed to Notion, Slack, Gmail, Artifacts, and prose .md files against a high-precision banned-phrase list and blocks it for rewrite before it is ever published. Ships the upstream no-ai-slop skill as the manual /command for structural patterns and audits.",
   "author": {
     "name": "Jesse Ganes",
