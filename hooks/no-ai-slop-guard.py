@@ -95,6 +95,19 @@ def collect_text(obj):
     return "\n".join(chunks)
 
 
+def read_file_text(path):
+    """Read a referenced file's text (for tools whose body lives in a file,
+    e.g. Artifact). Best-effort; returns '' if unreadable."""
+    if not path:
+        return ""
+    p = os.path.abspath(os.path.expanduser(path))
+    try:
+        with open(p, encoding="utf-8", errors="ignore") as fh:
+            return fh.read()
+    except OSError:
+        return ""
+
+
 def path_is_denied(file_path, denylist):
     ap = os.path.abspath(os.path.expanduser(file_path)).lower()
     base = os.path.basename(ap)
@@ -132,17 +145,23 @@ def main():
     if not GUARDED_TOOL_RE.search(tool_name):
         allow()
 
-    # Write/Edit: only prose extensions, and never a denylisted path.
     short = tool_name.split("__")[-1]
     if short in ("Write", "Edit"):
+        # Write/Edit: only prose extensions, and never a denylisted path.
         file_path = tool_input.get("file_path", "") or ""
         _, ext = os.path.splitext(file_path.lower())
         if ext not in PROSE_EXTS:
             allow()
         if path_is_denied(file_path, load_lines(DENYLIST_FILE)):
             allow()
+        text = collect_text(tool_input)
+    elif short == "Artifact":
+        # The Artifact body lives in a file referenced by file_path, not inline
+        # in tool_input, so scan that file in addition to title/description.
+        text = collect_text(tool_input) + "\n" + read_file_text(tool_input.get("file_path", "") or "")
+    else:
+        text = collect_text(tool_input)
 
-    text = collect_text(tool_input)
     if not text.strip():
         allow()
 
