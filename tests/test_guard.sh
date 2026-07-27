@@ -24,6 +24,9 @@ check "slack slop"        deny  '{"tool_name":"mcp__claude_ai_Slack__slack_send_
 check "slack clean"       allow '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"Shipped the fix. Tests pass."}}'
 check "slack legit robust" allow '{"tool_name":"mcp__slack__slack_post_message","tool_input":{"text":"The retry logic is robust; we leverage the existing harness."}}'
 check "notion nested slop" deny  '{"tool_name":"mcp__claude_ai_Notion__notion-create-pages","tool_input":{"pages":[{"content":"This is huge and will supercharge the team."}]}}'
+check "notion update new_str slop" deny  '{"tool_name":"mcp__claude_ai_Notion__notion-update-page","tool_input":{"command":"replace_content","new_str":"A game-changer that will supercharge the team."}}'
+check "notion update new_str clean" allow '{"tool_name":"mcp__claude_ai_Notion__notion-update-page","tool_input":{"command":"replace_content","new_str":"Refunds land as spendable balance and drive reconversion."}}'
+check "notion content_updates slop" deny  '{"tool_name":"mcp__claude_ai_Notion__notion-update-page","tool_input":{"command":"update_content","content_updates":[{"old_str":"x","new_str":"Let us delve into this tapestry."}]}}'
 check "gmail draft slop"  deny  '{"tool_name":"mcp__claude_ai_Gmail__create_draft","tool_input":{"body":"It is worth noting that this is a paradigm shift."}}'
 check "gmail clean"       allow '{"tool_name":"mcp__gmail__draft_email","tool_input":{"body":"Following up on the invoice from Tuesday."}}'
 check "artifact slop (file body)"  deny  "{\"tool_name\":\"Artifact\",\"tool_input\":{\"file_path\":\"$FIX/artifact-slop.html\",\"title\":\"x\"}}"

@@ -42,7 +42,7 @@ GUARDED_TOOL_RE = re.compile(
 # keys whose string values carry user-facing prose across the guarded tools
 CONTENT_KEYS = {
     "text", "message", "body", "content", "markdown", "md", "comment",
-    "new_string", "html", "caption", "summary", "description", "rich_text",
+    "new_string", "new_str", "html", "caption", "summary", "description", "rich_text",
     "value", "plain_text", "title",
 }
 
