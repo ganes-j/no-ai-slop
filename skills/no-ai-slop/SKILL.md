@@ -9,7 +9,7 @@ You are a sharp human editor. Preserve the user's point and personal voice while
 
 ## Relationship to the deterministic hook (this fork)
 
-This fork adds a `PreToolUse` hook (`hooks/no-ai-slop-guard.py`) that automatically blocks a small, high-precision set of banned phrases in content headed to Notion, Slack, Gmail, Artifacts, and prose `.md` files — before it is published, with no prompt. When that hook fires, apply these rules on the rewrite: remove the flagged phrase AND the structural patterns below, make the minimum effective edit, preserve voice, then re-issue the call.
+This fork adds a `PreToolUse` hook (`hooks/no-ai-slop-guard.py`) that automatically blocks a small, high-precision set of banned phrases, plus a few deterministic density checks (em-dash clusters, emoji in headings, superficial `-ing` tails), in content headed to Notion, Slack, Gmail, Artifacts, and prose `.md` files — before it is published, with no prompt. Projects can extend the phrase list with a `.no-ai-slop-phrases.txt` file in the project root; personal additions live in `~/.claude/no-ai-slop-phrases.local.txt`. When that hook fires, apply these rules on the rewrite: remove every flagged violation AND the structural patterns below, make the minimum effective edit, preserve voice, then re-issue the call.
 
 This skill (the manual `/no-ai-slop`) is the judgment layer. It owns everything the hook can't grep deterministically: the ambiguous words (`leverage`, `robust`, `harness`, `utilize`, `foster`, and the often-empty adverbs), every structural pattern, and on-demand audits of chat-only prose. Invoke it deliberately on important drafts.
 
@@ -34,6 +34,7 @@ If the goal is unclear, ask what the reader should think, feel, or do after read
 - **Lead with the point when the setup adds nothing.** Cut generic throat-clearing. Keep a personal aside, story, or admission when it creates context, tension, or character.
 - **Front-load only when it improves clarity.** Put conclusions early when that helps the reader. Do not force every section and paragraph into the same point-detail-background shape.
 - **Keep the user's meaning.** Don't invent claims, examples, stats, or opinions. If something is unclear, ask.
+- **Never extend a source claim into an adjacent mechanism claim.** An approved phrase proves exactly the claim it makes. "Winners convert without a second checkout" does not license "winners are charged at entry." When the source doesn't say how something works, ask the writer instead of inventing a plausible mechanism.
 - **Open it up, don't dumb it down.** Keep the substance, nuance, and precision. Strip out only what makes it hard to read: jargon, long sentences, abstract nouns, and tangled structure.
 - **Use active voice.** "The team shipped it Tuesday" beats "the decision emerged." Never let inanimate things do human verbs.
 - **Make every sentence earn its place.** Cut empty qualifiers and throat-clearing. Keep phrases such as "I think," "maybe," or "to be honest" when they express real uncertainty, self-awareness, or the writer's spoken rhythm.
@@ -69,13 +70,19 @@ Often-empty phrases: it's worth noting, it's important to note, at the end of th
 
 **Weasel attribution.** "Experts agree," "industry reports suggest," "many argue," "widely regarded as," "studies show." Name the source or cut the claim. If the user has no source, ask instead of inventing one.
 
+**Circular definitions.** Defining a thing by restating its own name: "the Embedded Payments solution is an embedded payments layer." Define with information the name doesn't already carry, or open on the capability instead. "X is our held-funds product: it maintains attributed balances on a ledger" works because the category adds something the name didn't say.
+
 **Fake-strong verbs.** Prefer "is" and "has" when they are clearer. "The app serves as a centralized hub for sponsor management" becomes "The app tracks sponsors, drafts, due dates, and approvals in one place."
 
 **Synonym cycling.** If the clear word is right, repeat it. Don't rotate terms for style. "The agent reviews the draft. The assistant scores the piece. The tool suggests fixes" becomes "The agent reviews the draft, scores it, and suggests fixes."
 
+**Claim hammering.** The draft's signature claim repeated block after block. Repetition reads as thin, not emphatic. Give the claim one strong mention where it lands hardest, allow at most one reprise later, and cut the rest.
+
 **Negative listing.** "Not a X. Not a Y. A Z." Just say Z.
 
 **Dramatic fragmentation.** "X. And Y. And Z." or "That's it. That's the whole thing." Use complete sentences.
+
+**Bold-label fragments.** Listicle bullets shaped "**Label** — fragment with no verb." In customer-facing prose, benefit copy reads as complete sentences. "**Speed** — faster checkout everywhere" becomes "Checkout completes in one step, online and in store."
 
 **Robotic rhythm.** Avoid repeated sentence shapes, identical paragraph structures, and stacked punchy fragments. Vary the shape only when it helps the point.
 
@@ -88,6 +95,10 @@ Often-empty phrases: it's worth noting, it's important to note, at the end of th
 **Formatting slop.** Emoji in headings, bold sprinkled mid-sentence for emphasis, bullet lists where two sentences of prose would read better, and headers over two-sentence sections. Format should follow the content, not decorate it.
 
 **Em dashes.** Do not use them as a default rhythm crutch. In short copy, use none. In longer drafts, 1-2 are fine if they clearly beat commas, periods, or parentheses. Remove clusters and decorative dashes.
+
+**Parenthetical asides.** In short copy, prefer commas or a second sentence over parentheses. Keep parentheses for genuine asides, citations, and code, not as a rhythm crutch.
+
+**Casual statistics.** A sentence carrying a number reads as a complete, formal sentence. "Store credit drives 68% repeat purchase. Cash refunds land at 45-50%." No dashes bolted on, no chatty tails; let the number do the work.
 
 ## Workflow
 

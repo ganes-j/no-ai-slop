@@ -3,18 +3,20 @@
 
 Reads a PreToolUse hook payload on stdin. If the tool is a guarded output
 surface (Notion / Slack / Gmail / Artifact / prose .md file) and the content
-about to be posted contains a high-precision AI-slop phrase, the tool call is
-DENIED with the flagged phrases in the reason, so the assistant rewrites the
+about to be posted contains a deterministic AI-slop violation, the tool call
+is DENIED with every violation in the reason, so the assistant rewrites the
 draft clean and re-calls before anything is published. Clean content passes
 silently.
 
-The deny is the deterministic exact-phrase gate. The reason instructs a full
+The deny is the deterministic gate. The reason instructs a full
 no-ai-slop rewrite (phrase + structural), so structural slop is caught in the
 same pass on every guarded surface — not only exact-phrase hits.
 
 Data files (edit these, not the code):
-  slop-phrases.txt        one auto-block phrase per line
-  prose-path-denylist.txt path patterns the .md guard skips
+  slop-phrases.txt                         shipped auto-block phrases
+  .no-ai-slop-phrases.txt                  project auto-block phrases
+  ~/.claude/no-ai-slop-phrases.local.txt   personal auto-block phrases
+  prose-path-denylist.txt                  path patterns the .md guard skips
 """
 import fnmatch
 import json
@@ -25,6 +27,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 PHRASES_FILE = os.path.join(HERE, "slop-phrases.txt")
 DENYLIST_FILE = os.path.join(HERE, "prose-path-denylist.txt")
+PROJECT_PHRASES_FILE = ".no-ai-slop-phrases.txt"
+PERSONAL_PHRASES_FILE = "~/.claude/no-ai-slop-phrases.local.txt"
 
 PROSE_EXTS = {".md", ".mdx", ".txt"}
 
@@ -45,6 +49,35 @@ CONTENT_KEYS = {
     "new_string", "new_str", "html", "caption", "summary", "description", "rich_text",
     "value", "plain_text", "title",
 }
+
+EM_DASH_DENSITY_MIN_COUNT = 2
+EM_DASH_DENSITY_CHARS = 350
+EM_DASH_PARAGRAPH_MIN_COUNT = 3
+ING_ANALYSIS_TAIL_WORDS = (
+    "highlighting", "underscoring", "showcasing", "demonstrating", "signaling",
+)
+
+# Up to three leading spaces is still a valid markdown heading.
+MARKDOWN_HEADING_RE = re.compile(r"^ {0,3}#{1,6}\s")
+# U+1F1E6 start covers regional-indicator (flag) emoji.
+HEADING_EMOJI_RE = re.compile(
+    r"[\U0001F1E6-\U0001FAFF\u2600-\u27BF\uFE0F]"
+)
+# Comma then spaces, or at most ONE newline (soft wrap) \u2014 never a paragraph break.
+ING_ANALYSIS_TAIL_RE = re.compile(
+    r",(?:[ \t]+|[ \t]*\n[ \t]*)(?:{words})\s+\w+".format(
+        words="|".join(ING_ANALYSIS_TAIL_WORDS)
+    ),
+    re.IGNORECASE,
+)
+
+REWRITE_INSTRUCTION = (
+    "Rewrite the draft to remove them, then re-issue the same call. "
+    "Apply the no-ai-slop skill on the rewrite (phrase AND structural "
+    "patterns — binary contrasts, fake-profound kickers, dramatic "
+    "fragmentation, etc.), make the minimum effective edit, and preserve "
+    "the author's voice. Do not strip legitimate meaning."
+)
 
 
 def load_lines(path):
@@ -121,6 +154,8 @@ def path_is_denied(file_path, denylist):
 
 
 def find_hits(text, phrases):
+    if not phrases:
+        return []
     hits = []
     low = text.lower()
     for phrase in phrases:
@@ -131,6 +166,83 @@ def find_hits(text, phrases):
         if re.search(pattern, low):
             hits.append(phrase)
     return hits
+
+
+def check_phrases(text, data):
+    project_dir = os.environ.get("CLAUDE_PROJECT_DIR") or data.get("cwd", "")
+    phrase_sources = [
+        ("shipped list", PHRASES_FILE),
+        (
+            "project list",
+            os.path.join(project_dir, PROJECT_PHRASES_FILE) if project_dir else "",
+        ),
+        ("personal list", os.path.expanduser(PERSONAL_PHRASES_FILE)),
+    ]
+    violations = []
+    for source, path in phrase_sources:
+        hits = find_hits(text, load_lines(path)) if path else []
+        if hits:
+            violations.append(
+                "AI-slop phrase(s) detected from {source}: {hits}.".format(
+                    source=source,
+                    hits=", ".join(repr(hit) for hit in hits),
+                )
+            )
+    return violations
+
+
+def check_em_dash_density(text, _data):
+    count = text.count("—")
+    dense_document = (
+        count >= EM_DASH_DENSITY_MIN_COUNT
+        and count * EM_DASH_DENSITY_CHARS > len(text)
+    )
+    if not dense_document and count < EM_DASH_PARAGRAPH_MIN_COUNT:
+        return []
+    paragraphs = re.split(r"\n\s*\n", text)
+    max_paragraph_count = max(paragraph.count("—") for paragraph in paragraphs)
+    dense_paragraph = max_paragraph_count >= EM_DASH_PARAGRAPH_MIN_COUNT
+    if not dense_document and not dense_paragraph:
+        return []
+    return [
+        "Em-dash density detected: {count} em dashes across {chars} characters; "
+        "densest paragraph has {paragraph_count}.".format(
+            count=count,
+            chars=len(text),
+            paragraph_count=max_paragraph_count,
+        )
+    ]
+
+
+def check_heading_emoji(text, _data):
+    heading_count = 0
+    in_fence = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if MARKDOWN_HEADING_RE.match(line) and HEADING_EMOJI_RE.search(line):
+            heading_count += 1
+    if not heading_count:
+        return []
+    return [
+        "Emoji in Markdown heading detected on {count} line(s).".format(
+            count=heading_count
+        )
+    ]
+
+
+def check_ing_analysis_tails(text, _data):
+    matches = ING_ANALYSIS_TAIL_RE.findall(text)
+    if not matches:
+        return []
+    return [
+        "-ing analysis tail(s) detected: {matches}.".format(
+            matches=", ".join(repr(match) for match in matches)
+        )
+    ]
 
 
 def main():
@@ -165,19 +277,28 @@ def main():
     if not text.strip():
         allow()
 
-    hits = find_hits(text, load_lines(PHRASES_FILE))
-    if not hits:
+    violations = []
+    checks = (
+        check_phrases,
+        check_em_dash_density,
+        check_heading_emoji,
+        check_ing_analysis_tails,
+    )
+    for check in checks:
+        violations.extend(check(text, data))
+
+    if not violations:
         allow()
 
     surface = short or tool_name
     reason = (
-        "AI-slop phrase(s) detected in content headed to {surface}: {hits}. "
-        "Rewrite the draft to remove them, then re-issue the same call. "
-        "Apply the no-ai-slop skill on the rewrite (phrase AND structural "
-        "patterns — binary contrasts, fake-profound kickers, dramatic "
-        "fragmentation, etc.), make the minimum effective edit, and preserve "
-        "the author's voice. Do not strip legitimate meaning."
-    ).format(surface=surface, hits=", ".join(repr(h) for h in hits))
+        "Content headed to {surface} has these violations:\n- {violations}\n\n"
+        "{instruction}"
+    ).format(
+        surface=surface,
+        violations="\n- ".join(violations),
+        instruction=REWRITE_INSTRUCTION,
+    )
     deny(reason)
 
 
