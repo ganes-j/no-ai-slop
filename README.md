@@ -18,6 +18,22 @@ Not meant to merge back upstream — the guard layer is a deliberate divergence.
 
 Tune the guard by editing the two data files; move a word out of `slop-phrases.txt` the moment it causes a bad rewrite. The manual skill's full pattern set lives in [SKILL.md](skills/no-ai-slop/SKILL.md).
 
+### 0.2.0 — density checks and per-project phrase lists
+
+Born from a day of real marketing-copy work where the phrase gate passed ~26 writes a human reviewer kept flagging for style. The deterministic layer now also denies:
+
+- **Em-dash clusters.** One em-dash always passes. A deny fires when dashes cluster (two or more, denser than about one per 350 characters, or three-plus in a single paragraph). Thresholds are module constants in the guard — tune them there.
+- **Emoji in markdown headings.** Heading lines only; body emoji stay legal.
+- **Superficial `-ing` tails.** ", highlighting/underscoring/showcasing/demonstrating/signaling ..." after a comma. `reflecting` is deliberately excluded (too often legitimate in technical prose).
+- **Five puffery phrases** joined the shipped list ("stands as a testament," "marks a pivotal moment," "plays a vital role," "solidifies its position," "underscores its significance").
+
+And the phrase gate now loads two optional supplemental lists, so project vocabulary bans get enforced without touching the shipped list:
+
+- `.no-ai-slop-phrases.txt` in the project root (resolved from `CLAUDE_PROJECT_DIR`, falling back to the hook payload's `cwd`) — e.g., a marketing repo banning "Customer 360" and "earn-and-burn".
+- `~/.claude/no-ai-slop-phrases.local.txt` — personal additions that follow you across projects.
+
+Missing files are silently skipped; a hit names which list it came from. All checks report in a single deny, so one rewrite round fixes everything.
+
 ## What the manual skill catches
 
 The `/no-ai-slop` command detects 20+ patterns. A sample:
