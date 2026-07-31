@@ -6,7 +6,7 @@ GUARD="$(cd "$(dirname "$0")/.." && pwd)/hooks/no-ai-slop-guard.py"
 pass=0; fail=0
 REWRITE_INSTRUCTION="Rewrite the draft to remove them, then re-issue the same call. Apply the no-ai-slop skill on the rewrite (phrase AND structural patterns — binary contrasts, fake-profound kickers, dramatic fragmentation, etc.), make the minimum effective edit, and preserve the author's voice. Do not strip legitimate meaning."
 
-FIX=/tmp/slop-test-fixtures; mkdir -p "$FIX"
+FIX="$(mktemp -d -t slop-test-fixtures-XXXXXX)"
 printf "Let us delve into this tapestry of results." > "$FIX/artifact-slop.html"
 printf "A clean sentence about payments and loyalty." > "$FIX/artifact-clean.html"
 mkdir -p "$FIX/project" "$FIX/project-missing" "$FIX/personal/.claude" "$FIX/empty-home" "$FIX/cwd-project"
@@ -65,7 +65,7 @@ check "gmail draft slop"  deny  '{"tool_name":"mcp__claude_ai_Gmail__create_draf
 check "gmail clean"       allow '{"tool_name":"mcp__gmail__draft_email","tool_input":{"body":"Following up on the invoice from Tuesday."}}'
 check "artifact slop (file body)"  deny  "{\"tool_name\":\"Artifact\",\"tool_input\":{\"file_path\":\"$FIX/artifact-slop.html\",\"title\":\"x\"}}"
 check "artifact clean (file body)" allow "{\"tool_name\":\"Artifact\",\"tool_input\":{\"file_path\":\"$FIX/artifact-clean.html\"}}"
-check "artifact title slop"        deny  '{"tool_name":"Artifact","tool_input":{"file_path":"/tmp/slop-test-fixtures/artifact-clean.html","title":"a paradigm shift"}}'
+check "artifact title slop"        deny  "{\"tool_name\":\"Artifact\",\"tool_input\":{\"file_path\":\"$FIX/artifact-clean.html\",\"title\":\"a paradigm shift\"}}"
 check "write md slop"     deny  '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/memo.md","content":"Let us dive in to this multifaceted problem."}}'
 check "write py slop"     allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/app.py","content":"# delve tapestry supercharge"}}'
 check "write denylist plan" allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/docs/plans/p.md","content":"delve into this tapestry"}}'
@@ -98,6 +98,12 @@ HOME="$FIX/empty-home" check "wrapped ing analysis tail" deny '{"tool_name":"Wri
 HOME="$FIX/empty-home" check "ing sentence subject" allow '{"tool_name":"mcp__claude_ai_Gmail__create_draft","tool_input":{"body":"Highlighting matters when reviewers scan a draft."}}'
 HOME="$FIX/empty-home" check "reflecting tail excluded" allow '{"tool_name":"mcp__claude_ai_Gmail__create_draft","tool_input":{"body":"The setting changed, reflecting the viewer’s theme."}}'
 CLAUDE_PROJECT_DIR="$FIX/project" HOME="$FIX/empty-home" check "project file with density only" deny '{"tool_name":"mcp__claude_ai_Notion__notion-update-page","tool_input":{"command":"replace_content","new_str":"Refunds return as balance—customers spend it again—and merchants retain the next purchase."}}' "Em-dash density" "!AI-slop phrase(s)"
+
+check "emoji heading inside code fence" allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/notes.md","content":"Real prose here.\n\n```\n## 🚀 Example\n```"}}'
+check "flag emoji in heading"           deny  '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/notes.md","content":"## 🇺🇸 Launch\n\nBody."}}'
+check "indented emoji heading"          deny  '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/notes.md","content":"   ## 🚀 Plan\n\nBody."}}'
+check "ing tail across paragraph break" allow '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"We shipped it,\n\nHighlighting comes later in the doc."}}'
+check "ing tail soft wrap still denies" deny  '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"The launch adds file search,\nhighlighting the team commitment."}}'
 
 echo "-----"
 echo "pass=$pass fail=$fail"

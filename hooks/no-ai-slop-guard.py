@@ -57,12 +57,15 @@ ING_ANALYSIS_TAIL_WORDS = (
     "highlighting", "underscoring", "showcasing", "demonstrating", "signaling",
 )
 
-MARKDOWN_HEADING_RE = re.compile(r"^#{1,6}\s")
+# Up to three leading spaces is still a valid markdown heading.
+MARKDOWN_HEADING_RE = re.compile(r"^ {0,3}#{1,6}\s")
+# U+1F1E6 start covers regional-indicator (flag) emoji.
 HEADING_EMOJI_RE = re.compile(
-    r"[\U0001F300-\U0001FAFF\u2600-\u27BF\uFE0F]"
+    r"[\U0001F1E6-\U0001FAFF\u2600-\u27BF\uFE0F]"
 )
+# Comma then spaces, or at most ONE newline (soft wrap) \u2014 never a paragraph break.
 ING_ANALYSIS_TAIL_RE = re.compile(
-    r",\s+(?:{words})\s+\w+".format(
+    r",(?:[ \t]+|[ \t]*\n[ \t]*)(?:{words})\s+\w+".format(
         words="|".join(ING_ANALYSIS_TAIL_WORDS)
     ),
     re.IGNORECASE,
@@ -212,11 +215,16 @@ def check_em_dash_density(text, _data):
 
 
 def check_heading_emoji(text, _data):
-    heading_count = sum(
-        1
-        for line in text.splitlines()
-        if MARKDOWN_HEADING_RE.match(line) and HEADING_EMOJI_RE.search(line)
-    )
+    heading_count = 0
+    in_fence = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if MARKDOWN_HEADING_RE.match(line) and HEADING_EMOJI_RE.search(line):
+            heading_count += 1
     if not heading_count:
         return []
     return [

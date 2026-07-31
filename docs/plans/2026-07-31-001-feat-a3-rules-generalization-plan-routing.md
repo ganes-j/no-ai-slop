@@ -17,3 +17,4 @@ Note: U1–U3 are sequential on the same two files with one shared verify comman
 - U3 · codex-implementer · PASS · re-check `bash tests/test_guard.sh` green (same run) · 0 fix rounds · 019fb9ff-d2bd-7d93-8cd0-f57b5ed8bb3f · 2026-07-31
 - U4 · coordinator · PASS · re-check n/a (prose; editorial read-through done) · 0 fix rounds · na · 2026-07-31
 - U5 · coordinator · PASS · re-check `bash tests/test_guard.sh` green · 0 fix rounds · na · 2026-07-31
+- dual-review round (PR #2): 2 High fixed (fence-aware heading check; -ing regex no longer crosses paragraph breaks), 2 split fixed (mktemp fixture dir; flag-emoji + indented-heading coverage), 1 split rejected by design (em-dash pairs in short copy are the rule's target) · coordinator · re-check `bash tests/test_guard.sh` green (pass=45 fail=0) · 2026-07-31
