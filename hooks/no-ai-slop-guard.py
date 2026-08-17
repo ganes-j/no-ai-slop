@@ -65,8 +65,10 @@ HTML_ENTITIES = (
 # A literal shorter than this is an identifier, a key, or a format fragment.
 SOURCE_LITERAL_MIN_CHARS = 20
 # Five consecutive words. Keeps identifiers, SQL fragments and CSS out.
+# Whitespace between words is required: without it "align-items:center;
+# justify-content:space-between" counts as five words and CSS reads as prose.
 PROSE_RUN_RE = re.compile(
-    r"(?:\b[A-Za-z][A-Za-z'’-]*\b[ \t,;:]+){4,}\b[A-Za-z][A-Za-z'’-]*\b"
+    r"(?:\b[A-Za-z][A-Za-z'’-]*\b[,;:]?[ \t]+){4,}\b[A-Za-z][A-Za-z'’-]*\b"
 )
 STRING_LITERAL_RE = re.compile(
     r"'''(?P<tsq>.*?)'''"
