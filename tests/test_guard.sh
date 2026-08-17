@@ -132,6 +132,9 @@ check_silent "daily nudge throttle" "$STALE_GUARD" "$FIX/nudge-home" "$NUDGE_JSO
 HOME="$FIX/deny-home" GUARD="$STALE_GUARD" check "stale slop stays deny-only" deny '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"Let us delve into this tapestry of results."}}' '"permissionDecision": "deny"' "!additionalContext"
 printf 'not json\n' > "$FIX/malformed-home/.claude/no-ai-slop-refresh-state.json"
 check_silent "malformed state fails open" "$GUARD" "$FIX/malformed-home" "$NUDGE_JSON"
+mkdir -p "$FIX/malformed-stale-home/.claude"
+printf 'not json\n' > "$FIX/malformed-stale-home/.claude/no-ai-slop-refresh-state.json"
+HOME="$FIX/malformed-stale-home" GUARD="$STALE_GUARD" check "malformed state still nudges when stale" allow "$NUDGE_JSON" "additionalContext" "!permissionDecision"
 
 echo "-----"
 echo "pass=$pass fail=$fail"
