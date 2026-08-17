@@ -124,6 +124,13 @@ check "source short literals"      allow '{"tool_name":"Edit","tool_input":{"fil
 check "source denylist tests dir"  allow '{"tool_name":"Edit","tool_input":{"file_path":"/x/repo/tests/fixture.mjs","new_string":"const s = \"A branded balance customers load and spend &mdash; float on it &mdash; and more &mdash; again &mdash; yes.\";"}}'
 check "source denylist tool repo"  allow '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/Developer/no-ai-slop/hooks/x.py","new_string":"S = \"A branded balance customers load and spend &mdash; float on it &mdash; and more &mdash; again &mdash; yes.\""}}'
 check "unknown ext still skipped"  allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/data.bin","new_string":"A branded balance customers load and spend &mdash; float &mdash; more &mdash; again &mdash; yes."}}'
+# Entities must decode BEFORE literals are picked: &nbsp; stands in for the
+# whitespace the prose run requires, so decoding after extraction drops it.
+check "nbsp-separated prose literal" deny '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/a.mjs","new_string":"const s = \"A&nbsp;branded&nbsp;balance&nbsp;customers&nbsp;load&nbsp;and&nbsp;spend&mdash;float&mdash;economics&mdash;more&mdash;yes\";"}}' "Em-dash density"
+# A literal is not terminated by an escaped delimiter.
+check "escaped quote in literal"     deny '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/a.mjs","new_string":"const s = \"he said \\\"paradigm shift\\\" and left the meeting today\";"}}' "shipped list"
+# The removed side of an Edit is never scored (old_string is not a content key).
+check "source edit ignores old_string" allow '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/a.mjs","old_string":"const old = \"Removed prose &mdash; with &mdash; three &mdash; dashes &mdash; here\";","new_string":"const ok = \"A clean replacement sentence with no dashes at all\";"}}'
 
 STALE_HOOKS="$FIX/stale-hooks"
 mkdir -p "$STALE_HOOKS"

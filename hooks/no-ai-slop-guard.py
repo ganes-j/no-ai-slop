@@ -70,12 +70,18 @@ SOURCE_LITERAL_MIN_CHARS = 20
 PROSE_RUN_RE = re.compile(
     r"(?:\b[A-Za-z][A-Za-z'’-]*\b[,;:]?[ \t]+){4,}\b[A-Za-z][A-Za-z'’-]*\b"
 )
+# Escape-aware: a delimiter preceded by a backslash does not close the literal,
+# so "he said \"x\" today" stays one string rather than three fragments. The
+# alternation branches are mutually exclusive on their first character, so this
+# stays linear-time. Nested template-literal interpolation (`a ${`b`} c`) still
+# truncates at the inner backtick; that under-reads a literal and can only miss
+# copy, never manufacture a block.
 STRING_LITERAL_RE = re.compile(
     r"'''(?P<tsq>.*?)'''"
     r"|\"\"\"(?P<tdq>.*?)\"\"\""
-    r"|`(?P<btq>[^`]*)`"
-    r"|'(?P<sq>[^'\n]*)'"
-    r"|\"(?P<dq>[^\"\n]*)\"",
+    r"|`(?P<btq>(?:[^`\\]|\\.)*)`"
+    r"|'(?P<sq>(?:[^'\\\n]|\\.)*)'"
+    r"|\"(?P<dq>(?:[^\"\\\n]|\\.)*)\"",
     re.S,
 )
 
@@ -403,17 +409,22 @@ def main():
             allow()
         if path_is_denied(file_path, load_lines(DENYLIST_FILE)):
             allow()
-        text = collect_text(tool_input)
+        # Decode before picking literals: an entity can stand in for the
+        # whitespace the prose run requires, and would otherwise drop the
+        # literal before it is ever scored.
+        text = decode_entities(collect_text(tool_input))
         if ext in SOURCE_EXTS:
             text = extract_prose_literals(text)
     elif short == "Artifact":
         # The Artifact body lives in a file referenced by file_path, not inline
         # in tool_input, so scan that file in addition to title/description.
-        text = collect_text(tool_input) + "\n" + read_file_text(tool_input.get("file_path", "") or "")
+        text = decode_entities(
+            collect_text(tool_input)
+            + "\n"
+            + read_file_text(tool_input.get("file_path", "") or "")
+        )
     else:
-        text = collect_text(tool_input)
-
-    text = decode_entities(text)
+        text = decode_entities(collect_text(tool_input))
 
     if not text.strip():
         allow()
