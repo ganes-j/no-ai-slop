@@ -46,3 +46,27 @@ marks a pivotal moment
 plays a vital role
 solidifies its position
 underscores its significance
+
+# --- Wikipedia "Signs of AI writing" reseed, 2026-08-17 ---
+# importance puffery / AI vocabulary (phrases; single ambiguous words stay in
+# the SKILL's judgment list)
+a testament to
+evolving landscape
+indelible mark
+plays a pivotal role
+plays a crucial role
+plays a key role
+underscores its importance
+boasts a
+
+# self-disclosure phrases (never legitimate in finished prose)
+as an AI language model
+as of my last update
+
+# chatbot reference-markup artifacts (pasted AI residue; literal, never
+# written on purpose)
+oaicite
+contentReference
+grok_render_citation_card_json
+attributableIndex
+ppl-ai-file-upload

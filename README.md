@@ -34,6 +34,15 @@ And the phrase gate now loads two optional supplemental lists, so project vocabu
 
 Missing files are silently skipped; a hit names which list it came from. All checks report in a single deny, so one rewrite round fixes everything.
 
+### 0.3.0 — self-refreshing guidelines (Wikipedia "Signs of AI writing")
+
+The guideline data now keeps itself current against Wikipedia's [Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing):
+
+- **Deterministic staleness nudge.** On each clean guarded call, the hook compares today against the newest of `hooks/signs-refresh-baseline.txt` (shipped, updated by each reseed PR) and `~/.claude/no-ai-slop-refresh-state.json` (written by local refreshes). Past 30 days it emits a PreToolUse `additionalContext` nudge — at most once per calendar day — pointing at the refresh workflow. No network in the hook, allow/deny behavior untouched, missing or malformed files fail open.
+- **`refresh-signs` workflow skill.** Fetches the Wikipedia page, curates new signs into tiers per the shipped list's curation rule (never-legitimate literal phrases → `slop-phrases.txt`; ambiguous vocabulary and structural patterns → the manual skill's judgment lists), mirrors auto-block additions into the personal list for immediate effect, updates state and baseline, and reports every addition and rejection.
+- **Initial reseed (2026-08-17).** Fifteen phrases joined the shipped list: importance puffery ("a testament to", "evolving landscape", "plays a pivotal/crucial/key role"...), AI self-disclosure ("as an AI language model", "as of my last update"), and chatbot reference-markup artifacts ("oaicite", "contentReference", and kin — literal tokens from pasted AI output). The judgment layer gained seven vocabulary words, a new "Rule of three" pattern, and extensions to four existing patterns (copula dodges, "Not only X, but also Y", challenges-then-optimism endings, Title Case / empty-heading formatting).
+- **Worktree exemption.** The path denylist now also skips worktree checkouts of this repo (`*/no-ai-slop-*/*`), which previously evaded the self-repo exemption and blocked the tool's own maintenance edits.
+
 ## What the manual skill catches
 
 The `/no-ai-slop` command detects 20+ patterns. A sample:

@@ -18,6 +18,7 @@ Data files (edit these, not the code):
   ~/.claude/no-ai-slop-phrases.local.txt   personal auto-block phrases
   prose-path-denylist.txt                  path patterns the .md guard skips
 """
+import datetime
 import fnmatch
 import json
 import os
@@ -27,8 +28,11 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 PHRASES_FILE = os.path.join(HERE, "slop-phrases.txt")
 DENYLIST_FILE = os.path.join(HERE, "prose-path-denylist.txt")
+BASELINE_FILE = os.path.join(HERE, "signs-refresh-baseline.txt")
 PROJECT_PHRASES_FILE = ".no-ai-slop-phrases.txt"
 PERSONAL_PHRASES_FILE = "~/.claude/no-ai-slop-phrases.local.txt"
+STATE_FILE = "~/.claude/no-ai-slop-refresh-state.json"
+REFRESH_INTERVAL_DAYS = 30
 
 PROSE_EXTS = {".md", ".mdx", ".txt"}
 
@@ -91,6 +95,70 @@ def load_lines(path):
             return out
     except OSError:
         return []
+
+
+def load_refresh_baseline():
+    try:
+        with open(BASELINE_FILE, encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return datetime.date.fromisoformat(line)
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def load_refresh_state():
+    try:
+        with open(os.path.expanduser(STATE_FILE), encoding="utf-8") as fh:
+            state = json.load(fh)
+        if not isinstance(state, dict):
+            raise ValueError
+        last_refresh = (
+            datetime.date.fromisoformat(state["last_refresh"])
+            if "last_refresh" in state
+            else None
+        )
+        last_nudge = (
+            datetime.date.fromisoformat(state["last_nudge"])
+            if "last_nudge" in state
+            else None
+        )
+        return state, last_refresh, last_nudge
+    except (OSError, TypeError, ValueError):
+        return {}, None, None
+
+
+def refresh_nudge():
+    baseline = load_refresh_baseline()
+    state, last_refresh, last_nudge = load_refresh_state()
+    refresh_dates = [value for value in (baseline, last_refresh) if value]
+    if not refresh_dates:
+        return None
+
+    effective = max(refresh_dates)
+    today = datetime.date.today()
+    age = (today - effective).days
+    if age <= REFRESH_INTERVAL_DAYS or last_nudge == today:
+        return None
+
+    state["last_nudge"] = today.isoformat()
+    state_path = os.path.expanduser(STATE_FILE)
+    try:
+        os.makedirs(os.path.dirname(state_path), exist_ok=True)
+        with open(state_path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+    except OSError:
+        pass
+
+    return (
+        "no-ai-slop guidelines were last refreshed {effective} ({age} days ago). "
+        "Run the plugin's refresh-signs workflow to pull new signs from Wikipedia's "
+        "'Signs of AI writing' "
+        "(https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) and update "
+        "the guard's data files."
+    ).format(effective=effective.isoformat(), age=age)
 
 
 def allow():
@@ -288,6 +356,15 @@ def main():
         violations.extend(check(text, data))
 
     if not violations:
+        nudge = refresh_nudge()
+        if nudge:
+            print(json.dumps({
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "additionalContext": nudge,
+                }
+            }))
+            sys.exit(0)
         allow()
 
     surface = short or tool_name

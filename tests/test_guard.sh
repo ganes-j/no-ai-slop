@@ -105,6 +105,37 @@ check "indented emoji heading"          deny  '{"tool_name":"Write","tool_input"
 check "ing tail across paragraph break" allow '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"We shipped it,\n\nHighlighting comes later in the doc."}}'
 check "ing tail soft wrap still denies" deny  '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"The launch adds file search,\nhighlighting the team commitment."}}'
 
+STALE_HOOKS="$FIX/stale-hooks"
+mkdir -p "$STALE_HOOKS"
+cp -R "$(dirname "$GUARD")/." "$STALE_HOOKS/"
+printf '2026-06-01\n' > "$STALE_HOOKS/signs-refresh-baseline.txt"
+STALE_GUARD="$STALE_HOOKS/no-ai-slop-guard.py"
+NUDGE_JSON='{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"Shipped the fix. Tests pass."}}'
+
+check_silent() { # name  guard  home  json
+  local name="$1" guard="$2" home="$3" json="$4"
+  local out status
+  out="$(printf '%s' "$json" | HOME="$home" python3 "$guard" 2>/dev/null)"
+  status=$?
+  if [ "$status" -eq 0 ] && [ -z "$out" ]; then
+    pass=$((pass+1)); printf 'PASS  %-42s -> allow\n' "$name"
+  else
+    fail=$((fail+1)); printf 'FAIL  %-42s -> got output/status %q/%s, want silent/0\n' "$name" "$out" "$status"
+  fi
+}
+
+mkdir -p "$FIX/nudge-home" "$FIX/fresh-state-home/.claude" "$FIX/deny-home" "$FIX/malformed-home/.claude"
+HOME="$FIX/nudge-home" GUARD="$STALE_GUARD" check "stale clean emits nudge" allow "$NUDGE_JSON" "additionalContext" "!permissionDecision"
+printf '{"last_refresh":"%s"}\n' "$(date +%F)" > "$FIX/fresh-state-home/.claude/no-ai-slop-refresh-state.json"
+check_silent "fresh state suppresses nudge" "$STALE_GUARD" "$FIX/fresh-state-home" "$NUDGE_JSON"
+check_silent "daily nudge throttle" "$STALE_GUARD" "$FIX/nudge-home" "$NUDGE_JSON"
+HOME="$FIX/deny-home" GUARD="$STALE_GUARD" check "stale slop stays deny-only" deny '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"Let us delve into this tapestry of results."}}' '"permissionDecision": "deny"' "!additionalContext"
+printf 'not json\n' > "$FIX/malformed-home/.claude/no-ai-slop-refresh-state.json"
+check_silent "malformed state fails open" "$GUARD" "$FIX/malformed-home" "$NUDGE_JSON"
+mkdir -p "$FIX/malformed-stale-home/.claude"
+printf 'not json\n' > "$FIX/malformed-stale-home/.claude/no-ai-slop-refresh-state.json"
+HOME="$FIX/malformed-stale-home" GUARD="$STALE_GUARD" check "malformed state still nudges when stale" allow "$NUDGE_JSON" "additionalContext" "!permissionDecision"
+
 echo "-----"
 echo "pass=$pass fail=$fail"
 [ "$fail" -eq 0 ]
