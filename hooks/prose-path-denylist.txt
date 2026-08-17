@@ -40,3 +40,4 @@ CONTRIBUTING.md
 # --- test fixtures + the anti-slop tool's own repo (these quote slop by design) ---
 */tests/*
 */no-ai-slop/*
+*/no-ai-slop-*/*
