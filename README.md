@@ -11,7 +11,7 @@ The differences, all deliberate:
 1. **A `PreToolUse` hook that blocks slop before it publishes.** `hooks/no-ai-slop-guard.py` greps content headed to **Notion, Slack, Gmail, Claude Artifacts, and prose `.md` files** against a high-precision phrase list. On a hit it denies the tool call and hands the flagged phrases back, so the draft is rewritten clean and re-issued *before* anything lands. No confusing half-published states, no prompt — it just runs.
 2. **Deterministic trigger, model-applied fix.** The hook is the exact-phrase gate (pure code). The rewrite it forces applies the full skill — phrases *and* structural patterns — so structural slop is caught on every guarded surface, not only when an exact phrase happens to appear.
 3. **A high-precision auto-list, separate from the judgment list.** `hooks/slop-phrases.txt` holds only phrases that are almost never legitimate (`delve`, `tapestry`, `paradigm shift`, `it's worth noting`…). Ambiguous words that are often legitimate in technical writing (`leverage`, `robust`, `harness`, `utilize`, and the often-empty adverbs) are **excluded** from the auto-list and stay in the manual `/command`, where a human applies judgment. Auto-rewrite with no human in the loop must not mangle real content.
-4. **A path denylist for the file guard.** `hooks/prose-path-denylist.txt` keeps the `.md` guard off internal engineering docs — plans, `docs/solutions`, memory, `CLAUDE.md`, session archives. Non-prose files (code, SQL, JSON) are never scanned.
+4. **A path denylist for the file guard.** `hooks/prose-path-denylist.txt` keeps the file guard off internal engineering docs — plans, `docs/solutions`, memory, `CLAUDE.md`, session archives. Source files are scanned for prose string literals only (5+ word runs); everything else — SQL, JSON, config — is never scanned.
 5. **Plugin-shaped.** Restructured into a Claude Code plugin (`skills/`, `hooks/hooks.json`, `.claude-plugin/`) so enabling it auto-registers the hook.
 
 Not meant to merge back upstream — the guard layer is a deliberate divergence.
@@ -33,6 +33,15 @@ And the phrase gate now loads two optional supplemental lists, so project vocabu
 - `~/.claude/no-ai-slop-phrases.local.txt` — personal additions that follow you across projects.
 
 Missing files are silently skipped; a hit names which list it came from. All checks report in a single deny, so one rewrite round fixes everything.
+
+### 0.4.0 — entity decoding and prose literals in source files
+
+Copy does not always arrive as prose in a prose file. Two blind spots let a deliverable ship unscored:
+
+- **HTML entities are decoded before scoring.** Prose that spells its punctuation as `&mdash;` / `&ndash;` / `&#8212;` reads to a human exactly like an em dash but carried none of the characters the density check counts. The hook now decodes a fixed table of dash, ellipsis, quote and space entities on every guarded surface. `&amp;` decodes last, so a deliberately escaped `&amp;mdash;` stays an entity instead of becoming a dash.
+- **Source files are scanned for prose string literals.** Marketing and UI copy routinely lives in a `.tsx` component or a `.mjs` template literal, and no source extension was scanned at all. The guard now reads the listed source extensions, but judges *only* string literals holding a run of five or more words — so identifiers, SQL fragments, format strings and CSS stay out. The path denylist applies unchanged, so `tests/`, plans, memory and this repo are still skipped.
+
+Measured before shipping, by replaying every `Edit`/`Write` in the author's local Claude Code transcripts: **21 new denials across 1,773 non-denylisted source-file writes (1.2%)**, and **zero change** on the 2,509 prose-file and 12,843 other guarded payloads — 156 and 225 denials respectively, before and after. The originating incident (five coversheet definitions written into a `.mjs` as `&mdash;`) moves from allow to deny; entity decoding is load-bearing for it, since without decoding the same payload still passes.
 
 ### 0.3.0 — self-refreshing guidelines (Wikipedia "Signs of AI writing")
 

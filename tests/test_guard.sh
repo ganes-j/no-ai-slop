@@ -105,6 +105,26 @@ check "indented emoji heading"          deny  '{"tool_name":"Write","tool_input"
 check "ing tail across paragraph break" allow '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"We shipped it,\n\nHighlighting comes later in the doc."}}'
 check "ing tail soft wrap still denies" deny  '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"The launch adds file search,\nhighlighting the team commitment."}}'
 
+# --- HTML entity decoding -------------------------------------------------
+# Prose that spells its em dashes as entities reads identically to a human but
+# carried zero literal em dashes past the density check.
+check "md entity em dashes"        deny  '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/memo.md","content":"One&mdash;two&mdash;three&mdash;four&mdash;five."}}' "Em-dash density"
+check "md numeric entity em dashes" deny '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/memo.md","content":"One&#8212;two&#x2014;three&#8212;four."}}' "Em-dash density"
+check "md single entity"           allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/memo.md","content":"One&mdash;two."}}'
+check "slack entity em dashes"     deny  '{"tool_name":"mcp__claude_ai_Slack__slack_send_message","tool_input":{"text":"Refunds return as balance&mdash;customers spend it again&mdash;and merchants keep the next purchase."}}' "Em-dash density"
+check "entity decode keeps phrases" deny '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/memo.md","content":"Let us delve into this&mdash;a tapestry."}}' "shipped list"
+
+# --- source-file prose literals -------------------------------------------
+# The real 2026-08-17 miss: five coversheet definitions written by Edit into a
+# .mjs template literal, spelled with &mdash; so nothing looked like an em dash.
+check "mjs prose literals (real miss)" deny '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/build/pages/strategic.mjs","new_string":"const BAND_DEFS = [[\"Move Money\", \"A branded balance customers load, hold, and spend everywhere the merchant sells &mdash; float on the balance, economics on the spend.\"], [\"Loyalty\", \"The marketing and activation layer on top of money movement &mdash; rewards, offers, and drops that turn balances into repeat purchase.\"], [\"Gifting\", \"Someone else pays and it lands as spendable balance &mdash; every gift or referral enrolls a new customer.\"], [\"Insights\", \"Full purchase behavior the merchant can act on &mdash; profiles, segments, and plain-language answers.\"]];"}}' "Em-dash density"
+check "tsx marketing copy literal" deny '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/src/solutions-entry.tsx","new_string":"const copy = \"Let us delve into this tapestry of loyalty results.\";"}}' "shipped list"
+check "source code only"           allow '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/app.ts","new_string":"const userIds = buildQuery(\"SELECT id FROM users WHERE active = true\");"}}'
+check "source short literals"      allow '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/app.ts","new_string":"const a = \"x&mdash;y\"; const b = \"p&mdash;q\"; const c = \"m&mdash;n\";"}}'
+check "source denylist tests dir"  allow '{"tool_name":"Edit","tool_input":{"file_path":"/x/repo/tests/fixture.mjs","new_string":"const s = \"A branded balance customers load and spend &mdash; float on it &mdash; and more &mdash; again &mdash; yes.\";"}}'
+check "source denylist tool repo"  allow '{"tool_name":"Edit","tool_input":{"file_path":"/Users/x/Developer/no-ai-slop/hooks/x.py","new_string":"S = \"A branded balance customers load and spend &mdash; float on it &mdash; and more &mdash; again &mdash; yes.\""}}'
+check "unknown ext still skipped"  allow '{"tool_name":"Write","tool_input":{"file_path":"/Users/x/data.bin","new_string":"A branded balance customers load and spend &mdash; float &mdash; more &mdash; again &mdash; yes."}}'
+
 STALE_HOOKS="$FIX/stale-hooks"
 mkdir -p "$STALE_HOOKS"
 cp -R "$(dirname "$GUARD")/." "$STALE_HOOKS/"
