@@ -2,7 +2,8 @@
 """no-ai-slop PreToolUse guard.
 
 Reads a PreToolUse hook payload on stdin. If the tool is a guarded output
-surface (Notion / Slack / Gmail / Artifact / prose .md file) and the content
+surface (Notion / Slack / Gmail / Artifact / prose .md file / prose string
+literals in a source file) and the content
 about to be posted contains a deterministic AI-slop violation, the tool call
 is DENIED with every violation in the reason, so the assistant rewrites the
 draft clean and re-calls before anything is published. Clean content passes
@@ -35,6 +36,54 @@ STATE_FILE = "~/.claude/no-ai-slop-refresh-state.json"
 REFRESH_INTERVAL_DAYS = 30
 
 PROSE_EXTS = {".md", ".mdx", ".txt"}
+
+# Source files are scanned for prose STRING LITERALS only (see
+# extract_prose_literals). Copy routinely lives in template literals and JSX,
+# where it reaches a reader as prose but never looked like prose to this guard.
+SOURCE_EXTS = {
+    ".mjs", ".cjs", ".js", ".jsx", ".ts", ".tsx", ".py", ".go", ".rb",
+    ".java", ".rs", ".php", ".swift", ".kt", ".c", ".h", ".cpp", ".cs",
+    ".scala", ".vue", ".svelte",
+}
+
+# Prose spelled as entities reads as prose but carries none of the characters
+# the density checks count. Decoded before scoring so "a &mdash; b" and
+# "a — b" are judged identically. "&amp;" decodes LAST so that a literal
+# "&amp;mdash;" stays an escaped entity rather than becoming an em dash.
+HTML_ENTITIES = (
+    ("&mdash;", "—"), ("&#8212;", "—"),
+    ("&#x2014;", "—"), ("&#X2014;", "—"),
+    ("&ndash;", "–"), ("&#8211;", "–"),
+    ("&#x2013;", "–"), ("&#X2013;", "–"),
+    ("&hellip;", "…"), ("&#8230;", "…"),
+    ("&lsquo;", "‘"), ("&rsquo;", "’"),
+    ("&ldquo;", "“"), ("&rdquo;", "”"),
+    ("&nbsp;", " "), ("&#160;", " "),
+    ("&amp;", "&"),
+)
+
+# A literal shorter than this is an identifier, a key, or a format fragment.
+SOURCE_LITERAL_MIN_CHARS = 20
+# Five consecutive words. Keeps identifiers, SQL fragments and CSS out.
+# Whitespace between words is required: without it "align-items:center;
+# justify-content:space-between" counts as five words and CSS reads as prose.
+PROSE_RUN_RE = re.compile(
+    r"(?:\b[A-Za-z][A-Za-z'’-]*\b[,;:]?[ \t]+){4,}\b[A-Za-z][A-Za-z'’-]*\b"
+)
+# Escape-aware: a delimiter preceded by a backslash does not close the literal,
+# so "he said \"x\" today" stays one string rather than three fragments. The
+# alternation branches are mutually exclusive on their first character, so this
+# stays linear-time. Nested template-literal interpolation (`a ${`b`} c`) still
+# truncates at the inner backtick; that under-reads a literal and can only miss
+# copy, never manufacture a block.
+STRING_LITERAL_RE = re.compile(
+    r"'''(?P<tsq>.*?)'''"
+    r"|\"\"\"(?P<tdq>.*?)\"\"\""
+    r"|`(?P<btq>(?:[^`\\]|\\.)*)`"
+    r"|'(?P<sq>(?:[^'\\\n]|\\.)*)'"
+    r"|\"(?P<dq>(?:[^\"\\\n]|\\.)*)\"",
+    re.S,
+)
 
 # tool_name patterns for surfaces the guard covers. The settings/plugin matcher
 # is the first filter; this is the authoritative second filter.
@@ -209,6 +258,31 @@ def read_file_text(path):
         return ""
 
 
+def decode_entities(text):
+    for entity, char in HTML_ENTITIES:
+        text = text.replace(entity, char)
+    return text
+
+
+def extract_prose_literals(text):
+    """Return the string-literal contents of source code that read as prose.
+
+    Scoring a whole source file would judge identifiers and code structure as
+    writing. Only literals holding a run of five or more words are returned, so
+    what gets judged is the copy a reader eventually sees.
+    """
+    chunks = []
+    for match in STRING_LITERAL_RE.finditer(text):
+        value = next(
+            (group for group in match.groups() if group is not None), None
+        )
+        if not value or len(value) < SOURCE_LITERAL_MIN_CHARS:
+            continue
+        if PROSE_RUN_RE.search(value):
+            chunks.append(value)
+    return "\n\n".join(chunks)
+
+
 def path_is_denied(file_path, denylist):
     ap = os.path.abspath(os.path.expanduser(file_path)).lower()
     base = os.path.basename(ap)
@@ -327,20 +401,30 @@ def main():
 
     short = tool_name.split("__")[-1]
     if short in ("Write", "Edit"):
-        # Write/Edit: only prose extensions, and never a denylisted path.
+        # Write/Edit: prose extensions whole, source extensions by prose
+        # literal, and never a denylisted path.
         file_path = tool_input.get("file_path", "") or ""
         _, ext = os.path.splitext(file_path.lower())
-        if ext not in PROSE_EXTS:
+        if ext not in PROSE_EXTS and ext not in SOURCE_EXTS:
             allow()
         if path_is_denied(file_path, load_lines(DENYLIST_FILE)):
             allow()
-        text = collect_text(tool_input)
+        # Decode before picking literals: an entity can stand in for the
+        # whitespace the prose run requires, and would otherwise drop the
+        # literal before it is ever scored.
+        text = decode_entities(collect_text(tool_input))
+        if ext in SOURCE_EXTS:
+            text = extract_prose_literals(text)
     elif short == "Artifact":
         # The Artifact body lives in a file referenced by file_path, not inline
         # in tool_input, so scan that file in addition to title/description.
-        text = collect_text(tool_input) + "\n" + read_file_text(tool_input.get("file_path", "") or "")
+        text = decode_entities(
+            collect_text(tool_input)
+            + "\n"
+            + read_file_text(tool_input.get("file_path", "") or "")
+        )
     else:
-        text = collect_text(tool_input)
+        text = decode_entities(collect_text(tool_input))
 
     if not text.strip():
         allow()

@@ -1,6 +1,7 @@
 # no-ai-slop — PROSE-FILE PATH DENYLIST (deterministic hook)
 #
-# The hook guards human-facing prose written to disk (.md / .mdx / .txt).
+# The hook guards human-facing prose written to disk (.md / .mdx / .txt), plus
+# prose string literals inside source files (.ts / .tsx / .mjs / .py / .go ...).
 # Any Write/Edit whose file path matches a pattern below is SKIPPED — the guard
 # never fires on it. This keeps the auto-rewrite off internal engineering docs,
 # planning artifacts, memory, and machine-owned files.
@@ -10,8 +11,11 @@
 # Keep this list conservative; when unsure, exclude (missing a memo is cheaper
 # than auto-editing a plan).
 #
-# Note: files that are not .md/.mdx/.txt (code, SQL, JSON, YAML, .py, .ts, ...)
-# are never scanned regardless of this list — the extension check excludes them.
+# Note: extensions outside the prose set (.md/.mdx/.txt) and the source set
+# (.ts/.tsx/.js/.mjs/.py/.go/.rb/.rs/...) are never scanned regardless of this
+# list — the extension check excludes them. That still covers SQL, JSON, YAML
+# and config. Source files are scanned for prose string literals ONLY: a literal
+# of 20+ characters holding a run of 5+ words. Code structure is never judged.
 
 # --- Claude Code config, memory, plans, lessons (never touch) ---
 CLAUDE.md
